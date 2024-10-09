@@ -1,24 +1,24 @@
-# ZRU Django
 
+# ZRU Django SDK
 
-# Overview
+## Overview
 
-ZRU Django provides integration access to the ZRU API through django framework.
+The ZRU Django SDK provides easy integration with the ZRU API using the Django framework.
 
-# Requirements
+## Requirements
 
 * [Django][django]
-* [ZRU Python][zru-python]
+* [ZRU Python SDK][zru-python]
 
-# Installation
+## Installation
 
-Install using `pip`...
+Install the SDK using pip:
 
 ```bash
 pip install zru-django
 ```
 
-Add `'zru_django'` to your `INSTALLED_APPS` setting.
+Then, add `'zru_django'` to your `INSTALLED_APPS` in your `settings.py` file:
 
 ```python
 INSTALLED_APPS = (
@@ -28,21 +28,25 @@ INSTALLED_APPS = (
 )
 ```
 
-Set the `ZRU_CONFIG` variable in settings.py using the following format:
+Set the `ZRU_CONFIG` in `settings.py` as follows:
+
 ```python
 ZRU_CONFIG = {
     'PUBLIC_KEY': '<your_public-key>',
-    'SECRET_KEY': '<your_secret-key>',
+    'SECRET_KEY': '<your-secret-key>',
     'CHECK_SIGNATURE_ON_NOTIFICATION': True,
 }
 ```
 
-You can get these values on the [ZRU Panel][zru-developers-key].
+You can obtain these keys from the [ZRU Developer Panel][zru-developers-key].
 
-This project is implemented with most versions in mind. For modern (and most) versions of Django, you should use:
+### URL Configuration
+
+For modern Django versions (2.0+), add the following to your `urls.py`:
 
 ```python
 from django.urls import path, include
+
 urlpatterns = [
     ...
     path("zru/", include('zru_django.urls')),
@@ -50,19 +54,31 @@ urlpatterns = [
 ]
 ```
 
-For older versions (django<2.0), you should use the `url` function instead of the `path` one.
- 
-Note: If you are using an older version of this library, you should set both 'PUBLIC_KEY' and 'PRIVATE_KEY' (set on the Django Admin page) on the settings.py file.
+For older Django versions (< 2.0), replace `path` with `url` as follows:
 
-# Migration Guide for Versions Prior to 1.x.x
+```python
+from django.conf.urls import url, include
 
-If you are migrating from a version prior to 1.x.x, you will need to update your import statements to reflect the change from django_mc2p to zru_django. Here is a guide to help you make these changes.
+urlpatterns = [
+    ...
+    url(r"^zru/", include('zru_django.urls')),
+    ...
+]
+```
+
+### Key Setup for Older Versions
+
+If you're using an older version of this library, ensure that both `'PUBLIC_KEY'` and `'PRIVATE_KEY'` are set in `settings.py`.
+
+## Migration Guide for Versions Prior to 1.x.x
+
+If you're migrating from a version earlier than 1.x.x, you will need to update your imports and client usage. Here’s a quick guide:
 
 ### Updating Import Statements
 
-For any imports that used the django_mc2p module, replace django_mc2p with zru_django.
+Replace `django_mc2p` imports with `zru_django`.
 
-#### Example:
+**Example:**
 
 Before:
 ```python
@@ -73,42 +89,39 @@ After:
 from zru_django import ZRUClient
 ```
 
-### Updating Client class
+### Updating the Client Class
 
-Replace MC2PClient with ZRUClient.
+Replace `MC2PClient` with `ZRUClient`.
 
-#### Example
+**Example:**
 
 Before:
-
 ```python
 client = MC2PClient(...)
 ```
 After:
-
 ```python
 client = ZRUClient(...)
 ```
 
-## Steps to Update Your Code
+### Steps to Update Your Code
 
-1.  Search and Replace: Use your IDE or a text editor to search for django_mc2p and replace it with zru_django.
-2.  Verify Imports: Ensure all import statements now reference zru_django.
-3.  Run Tests: Run your test suite to verify that your code is functioning correctly with the updated imports.
+1. **Search and Replace**: Use your editor to search for `django_mc2p` and replace it with `zru_django`.
+2. **Verify Imports**: Ensure all import statements point to `zru_django`.
+3. **Run Tests**: Verify that your code works as expected by running your test suite.
 
-### Summary
+## Quick Examples
 
-By following these steps, you can successfully migrate your project from versions prior to 1.x.x, ensuring compatibility with the new zru_django module naming convention.
-
-# Quick Example
-
-### Basic transaction
+### Creating and Managing a Transaction
 
 ```python
-# Sending user to pay
 from zru_django import ZRUClient
+from django.urls import reverse
 
+# Initialize client
 zru = ZRUClient()
+
+# Create transaction
 transaction = zru.Transaction({
     "currency": "EUR",
     "order_id": "order id",
@@ -123,11 +136,17 @@ transaction = zru.Transaction({
     "return_url": "https://www.example.com/your-return-url/",
     "cancel_return": "https://www.example.com/your-cancel-url/"
 })
-transaction.save()
-transaction.pay_url # Send user to this url to pay
-transaction.iframe_url # Show an iframe with this url
 
-# After user pay a notification will be sent to notify_url
+transaction.save()
+
+# Payment URLs
+transaction.pay_url  # Send user to this URL for payment
+transaction.iframe_url  # Show an iframe with this URL
+```
+
+After the payment, a notification is sent to `notify_url`. You can handle this notification as follows:
+
+```python
 from zru_django.signals import notification_received
 
 def check_payment(sender, **kwargs):
@@ -136,17 +155,19 @@ def check_payment(sender, **kwargs):
         transaction_id = notification_data.id
         sale_id = notification_data.sale_id
         order_id = notification_data.order_id
-        # Use transaction_id, sale_id and order_id to check all the data and confirm the payment in your system
+        # Process the payment confirmation using the received data
+
 notification_received.connect(check_payment)
 ```
 
-### Basic subscription
+### Handling a Subscription Payment
 
 ```python
-# Sending user to pay a subscription
 from zru_django import ZRUClient
 
 zru = ZRUClient()
+
+# Create subscription
 subscription = zru.Subscription({
     "currency": "EUR",
     "order_id": "order id",
@@ -155,36 +176,44 @@ subscription = zru.Subscription({
         "price": 5,
         "duration": 1,
         "unit": "M",
-        "recurring": true
+        "recurring": True
     },
     "notify_url": "https://www.example.com" + reverse('zru-notify'),
     "return_url": "https://www.example.com/your-return-url/",
     "cancel_return": "https://www.example.com/your-cancel-url/"
 })
-subscription.save()
-subscription.pay_url # Send user to this url to pay
-subscription.iframe_url # Show an iframe with this url
 
-# After user pay a notification will be sent to notify_url
+subscription.save()
+
+# Payment URLs
+subscription.pay_url  # Send user to this URL for payment
+subscription.iframe_url  # Show an iframe with this URL
+```
+
+Handle the subscription notification similarly:
+
+```python
 from zru_django.signals import notification_received
 
-def check_payment(sender, **kwargs):
+def check_subscription(sender, **kwargs):
     notification_data = sender
     if notification_data.is_subscription and notification_data.is_status_done:
         subscription_id = notification_data.id
         sale_id = notification_data.sale_id
         order_id = notification_data.order_id
-        # Use subscription_id, sale_id and order_id to check all the data and confirm the payment in your system
-notification_received.connect(check_payment)
+        # Process the subscription confirmation using the received data
+
+notification_received.connect(check_subscription)
 ```
 
-### Basic authorization
+### Managing an Authorization Payment
 
 ```python
-# Sending user to pay an authorization
 from zru_django import ZRUClient
 
 zru = ZRUClient()
+
+# Create authorization
 authorization = zru.Authorization({
     "currency": "EUR",
     "order_id": "order id",
@@ -192,21 +221,28 @@ authorization = zru.Authorization({
     "return_url": "https://www.example.com/your-return-url/",
     "cancel_return": "https://www.example.com/your-cancel-url/"
 })
-authorization.save()
-authorization.pay_url # Send user to this url to pay
-authorization.iframe_url # Show an iframe with this url
 
-# After user pay a notification will be sent to notify_url
+authorization.save()
+
+# Payment URLs
+authorization.pay_url  # Send user to this URL for payment
+authorization.iframe_url  # Show an iframe with this URL
+```
+
+Handle authorization notifications in the same way:
+
+```python
 from zru_django.signals import notification_received
 
-def check_payment(sender, **kwargs):
+def check_authorization(sender, **kwargs):
     notification_data = sender
     if notification_data.is_authorization and notification_data.is_status_done:
         authorization_id = notification_data.id
         sale_id = notification_data.sale_id
         order_id = notification_data.order_id
-        # Use authorization_id, sale_id and order_id to check all the data and confirm the payment in your system
-notification_received.connect(check_payment)
+        # Process the authorization confirmation using the received data
+
+notification_received.connect(check_authorization)
 ```
 
 [django]: https://www.djangoproject.com/
